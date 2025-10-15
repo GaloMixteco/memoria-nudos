@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memoria de Códices Mixtecas (Versión Final)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f0eadd;
+            color: #4a2c2a;
+            margin: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #game-board {
+            display: grid;
+            /* --- CAMBIO AQUÍ --- */
+            grid-template-columns: repeat(6, 120px); /* Cambiado de 5 a 6 columnas */
+            grid-gap: 15px;
+            perspective: 1000px;
+        }
+        .card {
+            width: 120px;
+            height: 120px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s, box-shadow 0.3s;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .card-front {
+            background-color: #8c4c3e;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g fill="%23f0eadd" fill-opacity="0.1"><path d="M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-48 0c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zM11 68c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-48 0c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z" /></g></svg>');
+        }
+        .card-back {
+            background-color: #fff;
+            transform: rotateY(180deg);
+        }
+        .card-back img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .card.matched {
+            transform: rotateY(180deg);
+            cursor: default;
+            box-shadow: 0 0 20px 5px #ffd700; 
+        }
+        #game-info {
+            margin-top: 25px;
+            font-size: 1.2em;
+            display: flex;
+            gap: 30px;
+        }
+        #restart-btn {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #4a2c2a;
+            color: #f0eadd;
+            transition: background-color 0.3s;
+            position: relative; 
+            z-index: 1001;
+        }
+        #restart-btn:hover {
+            background-color: #6a3c3a;
+        }
+        #match-notification {
+            position: fixed;
+            top: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 20px 40px;
+            font-size: 2em;
+            border-radius: 10px;
+            z-index: 1000;
+            transform: translateY(-200px);
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            opacity: 0;
+            text-align: center;
+        }
+        #match-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #win-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 3em;
+            text-align: center;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Memoria de Códices Mixtecas</h1>
+    <div id="match-notification"></div>
+
+    <div id="game-board"></div>
+
+    <div id="game-info">
+        <div id="moves-counter">Intentos: 0</div>
+        <div id="pairs-found">Pares encontrados: 0</div>
+    </div>
+    
+    <button id="restart-btn">Reiniciar Juego</button>
+
+    <div id="win-message">
+        <p>¡Felicidades!</p>
+    </div>
+
+    <script>
+        const cardData = [
+            { url: 'https://i.imgur.com/WDUN2Hl.png', name: 'Nudo amarillo' },
+            { url: 'https://i.imgur.com/Oz1lP0j.png', name: 'Nudo blanco' },
+            { url: 'https://i.imgur.com/LqlVgwi.png', name: 'Nudo de corazones' },
+            { url: 'https://i.imgur.com/ncUQist.png', name: 'Nudo de jade' },
+            { url: 'https://i.imgur.com/Z9GP4z9.png', name: 'Nudo de las montañas preciosas' },
+            { url: 'https://i.imgur.com/zllsk04.png', name: 'Nudo de los adoratorios' },
+            { url: 'https://i.imgur.com/u0y0NVQ.png', name: 'Nudo de los tonos' },
+            { url: 'https://i.imgur.com/hmRmJXQ.png', name: 'Nudo de oro' },
+            { url: 'https://i.imgur.com/I6fyudb.png', name: 'Nudo de papel pintado con hule negro' },
+            { url: 'https://i.imgur.com/8pmAKRD.png', name: 'Nudo de sangre' },
+            { url: 'https://i.imgur.com/fqz7YWU.png', name: 'Nudo del papel empapado en sangre' },
+            { url: 'https://i.imgur.com/KcquCM8.png', name: 'Nudo rojo' },
+            { url: 'https://i.imgur.com/qVxbLrS.png', name: 'Nudo verde' }
+        ];
+
+        const gameBoard = document.getElementById('game-board');
+        const movesCounter = document.getElementById('moves-counter');
+        const pairsFoundCounter = document.getElementById('pairs-found');
+        const restartBtn = document.getElementById('restart-btn');
+        const winMessage = document.getElementById('win-message');
+        const matchNotification = document.getElementById('match-notification');
+        
+        let cardDeck = [...cardData, ...cardData];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        let moves = 0;
+        let lockBoard = false;
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function createBoard() {
+            gameBoard.innerHTML = '';
+            matchedPairs = 0;
+            moves = 0;
+            movesCounter.textContent = `Intentos: 0`;
+            pairsFoundCounter.textContent = `Pares encontrados: 0`;
+            winMessage.style.display = 'none';
+
+            let shuffledCards = shuffle(cardDeck);
+            shuffledCards.forEach(cardInfo => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.name = cardInfo.name;
+                card.dataset.url = cardInfo.url;
+
+                card.innerHTML = `
+                    <div class="card-face card-front"></div>
+                    <div class="card-face card-back">
+                        <img src="${cardInfo.url}" alt="${cardInfo.name}">
+                    </div>
+                `;
+                gameBoard.appendChild(card);
+            });
+        }
+
+        function flipCard() {
+            if (flippedCards.length === 0) {
+                matchNotification.classList.remove('show');
+            }
+            
+            if (lockBoard) return;
+            if (this === flippedCards[0]) return;
+
+            this.classList.add('flipped');
+
+            if (flippedCards.length === 0) {
+                flippedCards.push(this);
+                return;
+            }
+
+            flippedCards.push(this);
+            moves++;
+            movesCounter.textContent = `Intentos: ${moves}`;
+            checkForMatch();
+        }
+        
+        function checkForMatch() {
+            let isMatch = flippedCards[0].dataset.url === flippedCards[1].dataset.url;
+            isMatch ? handleMatch() : unflipCards();
+        }
+
+        function handleMatch() {
+            const cardName = flippedCards[0].dataset.name;
+            showMatchNotification(cardName);
+            
+            flippedCards.forEach(card => {
+                card.removeEventListener('click', flipCard);
+                card.classList.add('matched');
+            });
+
+            matchedPairs++;
+            pairsFoundCounter.textContent = `Pares encontrados: ${matchedPairs}`;
+            resetBoard();
+            
+            if (matchedPairs === cardData.length) {
+                setTimeout(() => {
+                    winMessage.style.display = 'flex';
+                }, 1000);
+            }
+        }
+
+        function showMatchNotification(name) {
+            matchNotification.textContent = `¡Encontraste a ${name}!`;
+            matchNotification.classList.add('show');
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            setTimeout(() => {
+                flippedCards.forEach(card => {
+                    card.classList.remove('flipped');
+                });
+                resetBoard();
+            }, 1200);
+        }
+        
+        function resetBoard() {
+            [flippedCards, lockBoard] = [[], false];
+        }
+
+        function startGame() {
+            createBoard();
+            document.querySelectorAll('.card').forEach(card => card.addEventListener('click', flipCard));
+        }
+        
+        restartBtn.addEventListener('click', startGame);
+
+        startGame();
+
+    </script>
+</body>
+</html>
